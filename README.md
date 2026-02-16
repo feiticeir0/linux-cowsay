@@ -1,5 +1,5 @@
 # cowsay-image-to-bluesky
-![Cowsay](/assets/cowsay.jpg "Cowsay"))
+![Cowsay](/assets/cowsay.jpg "Cowsay")
 
 Bot Linux para publicar no Bluesky uma imagem PNG gerada a partir de:
 
