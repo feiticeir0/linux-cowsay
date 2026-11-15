@@ -127,7 +127,7 @@ def run_llm_generator(config: Dict[str, str]) -> str:
             },
             {
                 "role": "user",
-                "content": "Cria uma fortuna nova para aparecer numa imagem cowsay.",
+                "content": "Create a new fortune for a cowsay image.",
             },
         ],
         "temperature": 0.9,
