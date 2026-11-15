@@ -4,7 +4,7 @@
 Bot Linux para publicar no Bluesky uma imagem PNG com uma fortuna criada por um LLM (ou, opcionalmente, pelo pipeline clássico `fortune | cowsay | lolcat`).
 
 O script:
-- pede ao LLM uma fortuna curta em português europeu através de uma API compatível com OpenAI;
+- pede ao LLM uma fortuna curta em inglês (`en`) através de uma API compatível com OpenAI;
 - apresenta a fortuna com `cowsay` e cor com `lolcat`;
 - renderiza o ANSI para PNG com fonte monoespaçada;
 - faz upload da imagem no Bluesky e publica-a com `embed.images`;
@@ -51,7 +51,7 @@ Obrigatórios:
 - `BSKY_APP_PASSWORD`: app password (não use a password normal)
 
 Fortunas via LLM (configuração por defeito):
-- `COWSAY_SOURCE=llm`: usa um modelo para criar uma fortuna nova em pt-PT.
+- `COWSAY_SOURCE=llm`: usa um modelo para criar uma fortuna nova em inglês (`en`).
 - `LLM_BASE_URL`: URL base da API compatível com OpenAI, incluindo host, porta e `/v1`; por defeito `http://127.0.0.1:11434/v1` (Ollama local). Também pode apontar para outro computador ou para o servidor llama.cpp.
 - `LLM_MODEL`: modelo ou alias exposto pelo servidor; por defeito `qwen2.5:3b`.
 - `LLM_API_KEY`: chave opcional, necessária apenas em serviços que exijam autenticação.
