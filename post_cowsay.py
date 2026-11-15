@@ -117,12 +117,12 @@ def run_llm_generator(config: Dict[str, str]) -> str:
             {
                 "role": "system",
                 "content": (
-                    "Escreve uma fortuna original em português europeu (pt-PT), curta "
-                    "(uma frase, no máximo 25 palavras), espirituosa e inteligente, com "
-                    "um toque de humor ou reflexão. Não uses aspas, emojis, Markdown, "
-                    "prefácio nem digas que és uma IA. Evita conselhos perigosos, "
-                    "política partidária, insultos e conteúdo ofensivo. Responde apenas "
-                    "com a frase."
+                    "Write an original fortune in English (en), short (one sentence, no more "
+                    "than 25 words), witty and intelligent, with a touch of humor or "
+                    "reflection. Do not use quotation marks, emojis, Markdown, an "
+                    "introduction, or mention that you are an AI. Avoid dangerous "
+                    "advice, partisan politics, insults, and offensive content. Reply "
+                    "with the fortune only."
                 ),
             },
             {
