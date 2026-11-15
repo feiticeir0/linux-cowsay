@@ -21,7 +21,9 @@ Exemplo Debian/Ubuntu:
 
 ```bash
 sudo apt update
-sudo apt install -y fortune cowsay lolcat python3-pip
+sudo apt install -y cowsay lolcat python3-pip
+# Só para usar o pipeline clássico em vez do LLM:
+sudo apt install -y fortune-mod
 python3 -m pip install -r requirements.txt
 ```
 
@@ -54,6 +56,8 @@ Fortunas via LLM (configuração por defeito):
 - `LLM_MODEL`: modelo a usar; por defeito `qwen2.5:3b`.
 - `LLM_API_KEY`: chave opcional, necessária apenas em serviços que exijam autenticação.
 - `LLM_TIMEOUT`: tempo máximo de espera pela resposta, em segundos (90 por defeito).
+
+Com Ollama, confirma que o serviço está acessível em `LLM_BASE_URL` e descarrega o modelo com `ollama pull qwen2.5:3b` (ou configura outro modelo compatível).
 
 Para manter o pipeline antigo, configura `COWSAY_SOURCE=command` e ajusta `COWSAY_GENERATOR`. O script injeta `lolcat -f` se necessário.
 
