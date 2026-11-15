@@ -15,6 +15,9 @@ from urllib import error, request
 
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 DEFAULT_GENERATOR = "fortune | cowsay | lolcat -f"
+DEFAULT_LLM_BASE_URL = "http://127.0.0.1:11434/v1"
+DEFAULT_LLM_MODEL = "qwen2.5:3b"
+DEFAULT_LLM_TIMEOUT = "90"
 BLUESKY_PDS = "https://bsky.social"
 DEFAULT_POST_TEXT = "cowsay"
 DEFAULT_BG = (11, 14, 20)
@@ -46,6 +49,11 @@ def get_config() -> Dict[str, str]:
         "identifier": os.getenv("BSKY_IDENTIFIER", file_values.get("BSKY_IDENTIFIER", "")),
         "app_password": os.getenv("BSKY_APP_PASSWORD", file_values.get("BSKY_APP_PASSWORD", "")),
         "generator_cmd": os.getenv("COWSAY_GENERATOR", file_values.get("COWSAY_GENERATOR", DEFAULT_GENERATOR)),
+        "source": os.getenv("COWSAY_SOURCE", file_values.get("COWSAY_SOURCE", "llm")).strip().lower(),
+        "llm_base_url": os.getenv("LLM_BASE_URL", file_values.get("LLM_BASE_URL", DEFAULT_LLM_BASE_URL)).rstrip("/"),
+        "llm_model": os.getenv("LLM_MODEL", file_values.get("LLM_MODEL", DEFAULT_LLM_MODEL)),
+        "llm_api_key": os.getenv("LLM_API_KEY", file_values.get("LLM_API_KEY", "")),
+        "llm_timeout": os.getenv("LLM_TIMEOUT", file_values.get("LLM_TIMEOUT", DEFAULT_LLM_TIMEOUT)),
         "pds_host": os.getenv("BSKY_PDS_HOST", file_values.get("BSKY_PDS_HOST", BLUESKY_PDS)),
         "post_text": os.getenv("BSKY_POST_TEXT", file_values.get("BSKY_POST_TEXT", DEFAULT_POST_TEXT)),
         "font_path": os.getenv("BSKY_FONT_PATH", file_values.get("BSKY_FONT_PATH", "")),
@@ -55,6 +63,16 @@ def get_config() -> Dict[str, str]:
     if missing:
         names = ", ".join(missing)
         raise RuntimeError(f"Missing required config: {names}. Set .env or environment variables.")
+    if config["source"] not in ("llm", "command"):
+        raise RuntimeError("COWSAY_SOURCE must be 'llm' or 'command'.")
+    if config["source"] == "llm" and not config["llm_model"]:
+        raise RuntimeError("LLM_MODEL cannot be empty when COWSAY_SOURCE=llm.")
+    try:
+        timeout = int(config["llm_timeout"])
+        if timeout < 1:
+            raise ValueError
+    except ValueError as exc:
+        raise RuntimeError("LLM_TIMEOUT must be a positive integer number of seconds.") from exc
     return config
 
 
@@ -86,6 +104,87 @@ def run_generator(command: str) -> str:
     if "\x1b[" not in output and "lolcat" in normalized:
         raise RuntimeError("No ANSI color codes produced by lolcat. Check if lolcat is installed and supports -f.")
     return output
+
+
+def run_llm_generator(config: Dict[str, str]) -> str:
+    """Generate a short fortune with an OpenAI-compatible chat-completions API."""
+    headers = {}
+    if config["llm_api_key"]:
+        headers["Authorization"] = f"Bearer {config['llm_api_key']}"
+    payload = {
+        "model": config["llm_model"],
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Escreve uma fortuna original em português europeu (pt-PT), curta "
+                    "(uma frase, no máximo 25 palavras), espirituosa e inteligente, com "
+                    "um toque de humor ou reflexão. Não uses aspas, emojis, Markdown, "
+                    "prefácio nem digas que és uma IA. Evita conselhos perigosos, "
+                    "política partidária, insultos e conteúdo ofensivo. Responde apenas "
+                    "com a frase."
+                ),
+            },
+            {
+                "role": "user",
+                "content": "Cria uma fortuna nova para aparecer numa imagem cowsay.",
+            },
+        ],
+        "temperature": 0.9,
+        "max_tokens": 100,
+    }
+    response = post_json(
+        f"{config['llm_base_url']}/chat/completions",
+        payload,
+        headers=headers,
+        timeout=int(config["llm_timeout"]),
+    )
+    try:
+        content = response["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError("LLM response is missing choices[0].message.content.") from exc
+    if isinstance(content, list):
+        content = " ".join(
+            str(part.get("text", "")) for part in content if isinstance(part, dict)
+        )
+    fortune = re.sub(r"\\s+", " ", str(content)).strip().strip('“”"')
+    if not fortune:
+        raise RuntimeError("LLM returned an empty fortune.")
+    if len(fortune) > 600:
+        raise RuntimeError("LLM fortune is too long (maximum 600 characters).")
+
+    try:
+        cow = subprocess.run(
+            ["cowsay"],
+            input=fortune + "\\n",
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        colored = subprocess.run(
+            ["lolcat", "-f"],
+            input=cow.stdout,
+            capture_output=True,
+            text=True,
+            check=True,
+            env={
+                **os.environ,
+                "TERM": os.getenv("TERM", "xterm-256color"),
+                "COLORTERM": os.getenv("COLORTERM", "truecolor"),
+                "CLICOLOR_FORCE": "1",
+                "FORCE_COLOR": "3",
+            },
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Required command not found: {exc.filename}") from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip()
+        raise RuntimeError(f"cowsay/lolcat failed: {stderr or 'unknown error'}") from exc
+    if not colored.stdout:
+        raise RuntimeError("cowsay/lolcat produced empty output.")
+    if "\\x1b[" not in colored.stdout:
+        raise RuntimeError("No ANSI color codes produced by lolcat. Check if lolcat supports -f.")
+    return colored.stdout
 
 
 def ansi_256_to_rgb(code: int) -> Tuple[int, int, int]:
@@ -231,7 +330,12 @@ def render_png(ansi_text: str, out_path: Path, font_path: str, font_size: int) -
     img.save(out_path, format="PNG", optimize=True)
 
 
-def post_json(url: str, payload: dict, headers: Dict[str, str] | None = None) -> dict:
+def post_json(
+    url: str,
+    payload: dict,
+    headers: Dict[str, str] | None = None,
+    timeout: int = 20,
+) -> dict:
     """POST JSON and decode JSON response with useful error messages."""
     encoded = json.dumps(payload).encode("utf-8")
     req_headers = {"Content-Type": "application/json"}
@@ -239,7 +343,7 @@ def post_json(url: str, payload: dict, headers: Dict[str, str] | None = None) ->
         req_headers.update(headers)
     req = request.Request(url=url, data=encoded, headers=req_headers, method="POST")
     try:
-        with request.urlopen(req, timeout=20) as response:
+        with request.urlopen(req, timeout=timeout) as response:
             body = response.read().decode("utf-8")
             return json.loads(body)
     except error.HTTPError as exc:
@@ -319,7 +423,10 @@ def main() -> int:
     """Entrypoint: generate image, upload blob, then publish post."""
     try:
         cfg = get_config()
-        ansi_output = run_generator(cfg["generator_cmd"])
+        if cfg["source"] == "llm":
+            ansi_output = run_llm_generator(cfg)
+        else:
+            ansi_output = run_generator(cfg["generator_cmd"])
         plain_text = plain_text_from_ansi(ansi_output)
         png_path = Path(__file__).with_name("last_cowsay.png")
         font_size = int(cfg["font_size"])
