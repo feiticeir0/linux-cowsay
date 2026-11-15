@@ -52,12 +52,12 @@ Obrigatórios:
 
 Fortunas via LLM (configuração por defeito):
 - `COWSAY_SOURCE=llm`: usa um modelo para criar uma fortuna nova em pt-PT.
-- `LLM_BASE_URL`: URL base da API compatível com OpenAI; por defeito `http://127.0.0.1:11434/v1` (Ollama local).
-- `LLM_MODEL`: modelo a usar; por defeito `qwen2.5:3b`.
+- `LLM_BASE_URL`: URL base da API compatível com OpenAI, incluindo host, porta e `/v1`; por defeito `http://127.0.0.1:11434/v1` (Ollama local). Também pode apontar para outro computador ou para o servidor llama.cpp.
+- `LLM_MODEL`: modelo ou alias exposto pelo servidor; por defeito `qwen2.5:3b`.
 - `LLM_API_KEY`: chave opcional, necessária apenas em serviços que exijam autenticação.
 - `LLM_TIMEOUT`: tempo máximo de espera pela resposta, em segundos (90 por defeito).
 
-Com Ollama, confirma que o serviço está acessível em `LLM_BASE_URL` e descarrega o modelo com `ollama pull qwen2.5:3b` (ou configura outro modelo compatível).
+Exemplos de `LLM_BASE_URL`: Ollama noutro host, `http://192.168.1.20:11434/v1`; llama.cpp server, `http://192.168.1.20:8080/v1` (ajusta host e porta à tua configuração). O processo deve estar acessível a partir da máquina que executa o bot. Com Ollama, descarrega o modelo com `ollama pull qwen2.5:3b`; para llama.cpp, define `LLM_MODEL` com o alias servido pelo endpoint.
 
 Para manter o pipeline antigo, configura `COWSAY_SOURCE=command` e ajusta `COWSAY_GENERATOR`. O script injeta `lolcat -f` se necessário.
 
