@@ -18,6 +18,8 @@ DEFAULT_GENERATOR = "fortune | cowsay | lolcat -f"
 DEFAULT_LLM_BASE_URL = "http://127.0.0.1:11434/v1"
 DEFAULT_LLM_MODEL = "qwen2.5:3b"
 DEFAULT_LLM_TIMEOUT = "90"
+DEFAULT_LLM_MAX_TOKENS = "256"
+DEFAULT_LLM_REASONING_EFFORT = "none"
 BLUESKY_PDS = "https://bsky.social"
 DEFAULT_POST_TEXT = "cowsay"
 DEFAULT_BG = (11, 14, 20)
@@ -54,6 +56,8 @@ def get_config() -> Dict[str, str]:
         "llm_model": os.getenv("LLM_MODEL", file_values.get("LLM_MODEL", DEFAULT_LLM_MODEL)),
         "llm_api_key": os.getenv("LLM_API_KEY", file_values.get("LLM_API_KEY", "")),
         "llm_timeout": os.getenv("LLM_TIMEOUT", file_values.get("LLM_TIMEOUT", DEFAULT_LLM_TIMEOUT)),
+        "llm_max_tokens": os.getenv("LLM_MAX_TOKENS", file_values.get("LLM_MAX_TOKENS", DEFAULT_LLM_MAX_TOKENS)),
+        "llm_reasoning_effort": os.getenv("LLM_REASONING_EFFORT", file_values.get("LLM_REASONING_EFFORT", DEFAULT_LLM_REASONING_EFFORT)),
         "pds_host": os.getenv("BSKY_PDS_HOST", file_values.get("BSKY_PDS_HOST", BLUESKY_PDS)),
         "post_text": os.getenv("BSKY_POST_TEXT", file_values.get("BSKY_POST_TEXT", DEFAULT_POST_TEXT)),
         "font_path": os.getenv("BSKY_FONT_PATH", file_values.get("BSKY_FONT_PATH", "")),
@@ -73,6 +77,12 @@ def get_config() -> Dict[str, str]:
             raise ValueError
     except ValueError as exc:
         raise RuntimeError("LLM_TIMEOUT must be a positive integer number of seconds.") from exc
+    try:
+        max_tokens = int(config["llm_max_tokens"])
+        if max_tokens < 1:
+            raise ValueError
+    except ValueError as exc:
+        raise RuntimeError("LLM_MAX_TOKENS must be a positive integer.") from exc
     return config
 
 
@@ -131,7 +141,8 @@ def run_llm_generator(config: Dict[str, str]) -> str:
             },
         ],
         "temperature": 0.9,
-        "max_tokens": 100,
+        "max_tokens": int(config["llm_max_tokens"]),
+        "reasoning_effort": config["llm_reasoning_effort"],
     }
     response = post_json(
         f"{config['llm_base_url']}/chat/completions",
@@ -140,8 +151,10 @@ def run_llm_generator(config: Dict[str, str]) -> str:
         timeout=int(config["llm_timeout"]),
     )
     try:
-        content = response["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
+        choice = response["choices"][0]
+        message = choice["message"]
+        content = message.get("content")
+    except (KeyError, IndexError, TypeError, AttributeError) as exc:
         raise RuntimeError("LLM response is missing choices[0].message.content.") from exc
     if isinstance(content, list):
         content = " ".join(
@@ -149,7 +162,18 @@ def run_llm_generator(config: Dict[str, str]) -> str:
         )
     fortune = re.sub(r"\s+", " ", str(content)).strip().strip('“”"')
     if not fortune:
-        raise RuntimeError("LLM returned an empty fortune.")
+        finish_reason = choice.get("finish_reason") or "unknown"
+        if message.get("reasoning") or message.get("reasoning_content"):
+            raise RuntimeError(
+                "Ollama returned reasoning but no final text. "
+                "LLM_REASONING_EFFORT=none is requested by default; check the Ollama version "
+                "and model, or choose a non-thinking model."
+            )
+        fields = ", ".join(sorted(str(key) for key in message.keys()))
+        raise RuntimeError(
+            f"LLM returned an empty fortune (finish_reason={finish_reason}; "
+            f"message_fields={fields or 'none'}). Check the model and token limit."
+        )
     if len(fortune) > 600:
         raise RuntimeError("LLM fortune is too long (maximum 600 characters).")
 
