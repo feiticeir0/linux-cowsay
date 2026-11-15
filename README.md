@@ -1,24 +1,20 @@
 # cowsay-image-to-bluesky
 ![Cowsay](/assets/cowsay.jpg "Cowsay")
 
-Bot Linux para publicar no Bluesky uma imagem PNG gerada a partir de:
-
-```bash
-fortune | cowsay | lolcat
-```
+Bot Linux para publicar no Bluesky uma imagem PNG com uma fortuna criada por um LLM (ou, opcionalmente, pelo pipeline clássico `fortune | cowsay | lolcat`).
 
 O script:
-- gera ASCII colorido com ANSI (`lolcat`);
-- renderiza esse ANSI para PNG com fonte monoespaçada;
-- faz upload da imagem no Bluesky;
-- publica o post com `embed.images`;
+- pede ao LLM uma fortuna curta em português europeu através de uma API compatível com OpenAI;
+- apresenta a fortuna com `cowsay` e cor com `lolcat`;
+- renderiza o ANSI para PNG com fonte monoespaçada;
+- faz upload da imagem no Bluesky e publica-a com `embed.images`;
 - usa o texto sem ANSI como `alt` da imagem.
 
 ## Requisitos
 
 - Linux com `systemd --user`
 - Python 3.10+
-- `fortune`, `cowsay`, `lolcat`
+- `cowsay` e `lolcat` (e `fortune` se for usado o modo clássico)
 - dependências Python de `requirements.txt`
 
 Exemplo Debian/Ubuntu:
@@ -52,10 +48,18 @@ Obrigatórios:
 - `BSKY_IDENTIFIER`: handle ou email da conta Bluesky
 - `BSKY_APP_PASSWORD`: app password (não use a password normal)
 
-Opcionais:
+Fortunas via LLM (configuração por defeito):
+- `COWSAY_SOURCE=llm`: usa um modelo para criar uma fortuna nova em pt-PT.
+- `LLM_BASE_URL`: URL base da API compatível com OpenAI; por defeito `http://127.0.0.1:11434/v1` (Ollama local).
+- `LLM_MODEL`: modelo a usar; por defeito `qwen2.5:3b`.
+- `LLM_API_KEY`: chave opcional, necessária apenas em serviços que exijam autenticação.
+- `LLM_TIMEOUT`: tempo máximo de espera pela resposta, em segundos (90 por defeito).
+
+Para manter o pipeline antigo, configura `COWSAY_SOURCE=command` e ajusta `COWSAY_GENERATOR`. O script injeta `lolcat -f` se necessário.
+
+Outras opções:
 - `BSKY_PDS_HOST`: por padrão `https://bsky.social`
 - `BSKY_POST_TEXT`: texto da legenda do post
-- `COWSAY_GENERATOR`: pipeline de geração (default força `lolcat -f`)
 - `BSKY_FONT_PATH`: caminho de fonte monoespaçada TTF
 - `BSKY_FONT_SIZE`: tamanho da fonte no PNG
 
@@ -90,4 +94,4 @@ journalctl --user -u cowsay-bluesky.service -n 50 --no-pager
 ## Segurança
 
 - `.env` está no `.gitignore` para evitar leak de credenciais.
-- Nunca commite app password no repositório.
+- Nunca commites a app password do Bluesky nem a chave da API do LLM no repositório.
