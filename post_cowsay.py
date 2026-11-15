@@ -147,7 +147,7 @@ def run_llm_generator(config: Dict[str, str]) -> str:
         content = " ".join(
             str(part.get("text", "")) for part in content if isinstance(part, dict)
         )
-    fortune = re.sub(r"\\s+", " ", str(content)).strip().strip('“”"')
+    fortune = re.sub(r"\s+", " ", str(content)).strip().strip('“”"')
     if not fortune:
         raise RuntimeError("LLM returned an empty fortune.")
     if len(fortune) > 600:
@@ -156,7 +156,7 @@ def run_llm_generator(config: Dict[str, str]) -> str:
     try:
         cow = subprocess.run(
             ["cowsay"],
-            input=fortune + "\\n",
+            input=fortune + "\n",
             capture_output=True,
             text=True,
             check=True,
@@ -182,7 +182,7 @@ def run_llm_generator(config: Dict[str, str]) -> str:
         raise RuntimeError(f"cowsay/lolcat failed: {stderr or 'unknown error'}") from exc
     if not colored.stdout:
         raise RuntimeError("cowsay/lolcat produced empty output.")
-    if "\\x1b[" not in colored.stdout:
+    if "\x1b[" not in colored.stdout:
         raise RuntimeError("No ANSI color codes produced by lolcat. Check if lolcat supports -f.")
     return colored.stdout
 
