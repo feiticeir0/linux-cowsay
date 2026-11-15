@@ -1,31 +1,29 @@
 # cowsay-image-to-bluesky
 ![Cowsay](/assets/cowsay.jpg "Cowsay")
 
-Bot Linux para publicar no Bluesky uma imagem PNG gerada a partir de:
-
-```bash
-fortune | cowsay | lolcat
-```
+Bot Linux para publicar no Bluesky uma imagem PNG com uma fortuna criada por um LLM (ou, opcionalmente, pelo pipeline clássico `fortune | cowsay | lolcat`).
 
 O script:
-- gera ASCII colorido com ANSI (`lolcat`);
-- renderiza esse ANSI para PNG com fonte monoespaçada;
-- faz upload da imagem no Bluesky;
-- publica o post com `embed.images`;
+- pede ao LLM uma fortuna curta em inglês (`en`) através de uma API compatível com OpenAI;
+- apresenta a fortuna com `cowsay` e cor com `lolcat`;
+- renderiza o ANSI para PNG com fonte monoespaçada;
+- faz upload da imagem no Bluesky e publica-a com `embed.images`;
 - usa o texto sem ANSI como `alt` da imagem.
 
 ## Requisitos
 
 - Linux com `systemd --user`
 - Python 3.10+
-- `fortune`, `cowsay`, `lolcat`
+- `cowsay` e `lolcat` (e `fortune` se for usado o modo clássico)
 - dependências Python de `requirements.txt`
 
 Exemplo Debian/Ubuntu:
 
 ```bash
 sudo apt update
-sudo apt install -y fortune cowsay lolcat python3-pip
+sudo apt install -y cowsay lolcat python3-pip
+# Só para usar o pipeline clássico em vez do LLM:
+sudo apt install -y fortune-mod
 python3 -m pip install -r requirements.txt
 ```
 
@@ -52,10 +50,22 @@ Obrigatórios:
 - `BSKY_IDENTIFIER`: handle ou email da conta Bluesky
 - `BSKY_APP_PASSWORD`: app password (não use a password normal)
 
-Opcionais:
+Fortunas via LLM (configuração por defeito):
+- `COWSAY_SOURCE=llm`: usa um modelo para criar uma fortuna nova em inglês (`en`).
+- `LLM_BASE_URL`: URL base da API compatível com OpenAI, incluindo host, porta e `/v1`; por defeito `http://127.0.0.1:11434/v1` (Ollama local). Também pode apontar para outro computador ou para o servidor llama.cpp.
+- `LLM_MODEL`: modelo ou alias exposto pelo servidor; por defeito `qwen2.5:3b`.
+- `LLM_API_KEY`: chave opcional, necessária apenas em serviços que exijam autenticação.
+- `LLM_TIMEOUT`: tempo máximo de espera pela resposta, em segundos (90 por defeito).
+- `LLM_REASONING_EFFORT`: por defeito `none`, para pedir resposta direta aos modelos com thinking do Ollama.
+- `LLM_MAX_TOKENS`: máximo de tokens da resposta (256 por defeito).
+
+Exemplos de `LLM_BASE_URL`: Ollama noutro host, `http://192.168.1.20:11434/v1`; llama.cpp server, `http://192.168.1.20:8080/v1` (ajusta host e porta à tua configuração). O processo deve estar acessível a partir da máquina que executa o bot. Com Ollama, descarrega o modelo com `ollama pull qwen2.5:3b`; para llama.cpp, define `LLM_MODEL` com o alias servido pelo endpoint.
+
+Para manter o pipeline antigo, configura `COWSAY_SOURCE=command` e ajusta `COWSAY_GENERATOR`. O script injeta `lolcat -f` se necessário.
+
+Outras opções:
 - `BSKY_PDS_HOST`: por padrão `https://bsky.social`
 - `BSKY_POST_TEXT`: texto da legenda do post
-- `COWSAY_GENERATOR`: pipeline de geração (default força `lolcat -f`)
 - `BSKY_FONT_PATH`: caminho de fonte monoespaçada TTF
 - `BSKY_FONT_SIZE`: tamanho da fonte no PNG
 
@@ -90,4 +100,4 @@ journalctl --user -u cowsay-bluesky.service -n 50 --no-pager
 ## Segurança
 
 - `.env` está no `.gitignore` para evitar leak de credenciais.
-- Nunca commite app password no repositório.
+- Nunca commites a app password do Bluesky nem a chave da API do LLM no repositório.
