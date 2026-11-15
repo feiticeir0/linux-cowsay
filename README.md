@@ -56,6 +56,8 @@ Fortunas via LLM (configuração por defeito):
 - `LLM_MODEL`: modelo ou alias exposto pelo servidor; por defeito `qwen2.5:3b`.
 - `LLM_API_KEY`: chave opcional, necessária apenas em serviços que exijam autenticação.
 - `LLM_TIMEOUT`: tempo máximo de espera pela resposta, em segundos (90 por defeito).
+- `LLM_REASONING_EFFORT`: por defeito `none`, para pedir resposta direta aos modelos com thinking do Ollama.
+- `LLM_MAX_TOKENS`: máximo de tokens da resposta (256 por defeito).
 
 Exemplos de `LLM_BASE_URL`: Ollama noutro host, `http://192.168.1.20:11434/v1`; llama.cpp server, `http://192.168.1.20:8080/v1` (ajusta host e porta à tua configuração). O processo deve estar acessível a partir da máquina que executa o bot. Com Ollama, descarrega o modelo com `ollama pull qwen2.5:3b`; para llama.cpp, define `LLM_MODEL` com o alias servido pelo endpoint.
 
